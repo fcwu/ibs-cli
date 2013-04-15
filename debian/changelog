@@ -1,4 +1,10 @@
-ibs-cli (0.2) quantal; urgency=low
+ibs-cli (0.3) UNRELEASED; urgency=low
+
+  * Remove python module mechanize and change build dependency
+
+ -- Doro Wu <doro.wu@canonical.com>  Mon, 15 Apr 2013 16:12:53 +0800
+
+ibs-cli (0.2) UNRELEASED; urgency=low
 
   * Initial Debian release
 
