@@ -1,9 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-
-"""
-"""
+__version__ = '0.2'
+__all__ = ['IbsCli']
+__author__ = 'DoroWu'
+__home_page__ = ''
 
 import os, sys
 import getpass
@@ -19,7 +20,7 @@ import time
 import mechanize
 import cookielib
 
-class OemIbs(object):
+class IbsCli(object):
     def __init__(self, args, extra_args):
         self._args = args
         self._extra_args = extra_args
@@ -160,7 +161,7 @@ class OemIbs(object):
                 r = self.browser.open(base_url + url)
                 with open(filename, 'wb+') as f:
                     chunk_read(r, file=f, report_hook=chunk_report)
-            except Exception as e:
+            except Exception:
                 logging.error('Failed to download {0}{1}'.format(base_url, url))
 
         def download_one_zsync(base_path, base_url, url):
@@ -238,7 +239,7 @@ class OemIbs(object):
             logging.debug('open oid_form')
             r = br.submit()
             html = r.read()
-        except Exception as e:
+        except Exception:
             logging.debug('no oid_form')
 
         try:
@@ -252,7 +253,7 @@ class OemIbs(object):
                 break
             else:
                 pass
-        except Exception as e:
+        except Exception:
             logging.debug('no openid_message')
 
         try:
@@ -262,7 +263,7 @@ class OemIbs(object):
             logging.debug('open loginform')
             r = br.submit()
             html = r.read()
-        except Exception as e:
+        except Exception:
             logging.debug('no loginform')
 
         try:
@@ -270,7 +271,7 @@ class OemIbs(object):
             logging.debug('open decideform')
             r = br.submit()
             html = r.read()
-        except Exception as e:
+        except Exception:
             logging.debug('no decideform')
 
         self.cookie.save('mycookie', ignore_discard=True)
@@ -336,7 +337,7 @@ class OemIbs(object):
         page_url = 'https://oem-ibs.canonical.com/projects/{0}/+build'.format(
                    self._args.proj_name)
         #logging.info(page_url)
-        html = self.fetch_page(page_url)
+        self.fetch_page(page_url)
         #with open('p2.html', 'wb+') as f:
         #with open('p1.html', 'r') as f:
         #    f.write(html)
@@ -376,7 +377,7 @@ class OemIbs(object):
                 date_url, nr_in_date_url = self._args.build_name.split('-')
                 date_url += '/'
                 nr_in_date_url += '/'
-            except Exception as e:
+            except Exception:
                 logging.critical('No build_name: ' + self._args.build_name)
                 return
         else:
@@ -398,7 +399,7 @@ class OemIbs(object):
             links = find_records(html)
             try:
                 nr_in_date_url = links[-1][0]
-            except Exception as e:
+            except Exception:
                 print 'No link N'
                 return
 
@@ -431,7 +432,6 @@ class OemIbs(object):
             time.sleep(10)
 
     def run(self):
-        actions = ['list-projects', 'list-builds', 'build', 'download', 'monitor']
         action_fns = {'list-projects': self.act_list_projects,
                       'list-builds': self.act_list_builds,
                       'build': self.act_build,
@@ -534,7 +534,7 @@ def main():
     logging.debug('Extra Arguments: {0!r}'.format(extra_args))
 
     try:
-        OemIbs(args, extra_args).run()
+        IbsCli(args, extra_args).run()
     except KeyboardInterrupt:
         logging.info('^c')
 
