@@ -1,0 +1,36 @@
+GIT_SRC = ibs-cli-git
+SERIES = precise quantal raring
+
+.PYONY: ${SERIES}
+
+all: ${SERIES}
+
+${SERIES}:
+	cp -r ibs-cli-git ibs-cli~$@
+	cd ibs-cli~$@ \
+		&& git reset --hard HEAD \
+		&& git clean -xdf \
+		&& rm -rf .git \
+		&& dch -i -D $@ "auto build" \
+		&& sed -i '1 s/(\(.*\))/(\1~$@)/' debian/changelog \
+		&& debuild -S
+
+bzr: ibs-cli-bzr
+	cd ibs-cli-bzr \
+		&& rm -rf * \
+		&& cp -r ../${GIT_SRC}/* ./ \
+		&& bzr add . \
+		&& bzr commit -m "auto pull from git"
+
+ibs-cli-bzr:
+	bzr branch lp:~fcwu-tw/+junk/ibs-cli ibs-cli-bzr
+
+clean:
+	@for series in ${SERIES} ; do \
+		echo rm -rf ibs-cli~$$series; \
+		rm -rf ibs-cli~$$series; \
+	done
+	rm -rf ibs-cli-bzr
+
+dput:
+	#dput ppa:fcwu-tw/oem ibs-cli_0.3ubuntu1~precise_source.changes
