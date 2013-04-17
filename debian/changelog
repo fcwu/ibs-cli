@@ -1,3 +1,11 @@
+ibs-cli (0.4) UNRELEASED; urgency=low
+
+  * Fix 2-FA failed to login
+  * Move log file to /tmp/
+  * Move cookie to ~/.config/ibs-cli/
+
+ -- Doro Wu <doro.wu@canonical.com>  Mon, 15 Apr 2013 16:12:53 +0800
+
 ibs-cli (0.3) UNRELEASED; urgency=low
 
   * Remove python module mechanize and change build dependency
