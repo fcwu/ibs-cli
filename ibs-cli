@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__version__ = '0.2'
+__version__ = '0.4'
 __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
@@ -42,8 +42,8 @@ class IbsCli(object):
         if hasattr(self, '_cookie'):
             return self._cookie
         self._cookie = cookielib.LWPCookieJar()
-        if os.path.exists('mycookie'):
-            self._cookie.load('mycookie')
+        if os.path.exists(os.path.join(self._args.config_dir, 'mycookie')):
+            self._cookie.load(os.path.join(self._args.config_dir, 'mycookie'))
         return self.cookie
 
     @property
@@ -171,7 +171,7 @@ class IbsCli(object):
             logging.debug('fork zsync process for {0}'.format(url))
             # cookie
             cookie_str = None
-            with open('mycookie', 'r') as f:
+            with open(os.path.join(self._args.config_dir, 'mycookie'), 'r') as f:
                 for line in f:
                     loc_pysid = line.find('pysid=')
                     if loc_pysid < 0:
@@ -267,6 +267,16 @@ class IbsCli(object):
             logging.debug('no loginform')
 
         try:
+            br.select_form(name='loginform')
+            logging.debug('open loginform for 2-factor')
+            br['oath_token'] = getpass.getpass('2-factor token: ')
+            logging.debug('input oath_token')
+            r = br.submit()
+            html = r.read()
+        except Exception:
+            logging.debug('no loginform for 2-factor')
+
+        try:
             br.select_form(name='decideform')
             logging.debug('open decideform')
             r = br.submit()
@@ -274,7 +284,10 @@ class IbsCli(object):
         except Exception:
             logging.debug('no decideform')
 
-        self.cookie.save('mycookie', ignore_discard=True)
+        if self._args.log_level <= logging.DEBUG:
+            with open(os.path.join(self._args.log_dir, 'ibs-cli.html'), 'wb+') as f:
+                f.write(html)
+        self.cookie.save(os.path.join(self._args.config_dir, 'mycookie'), ignore_discard=True)
         return html
 
     def project_status(self):
@@ -431,12 +444,18 @@ class IbsCli(object):
                 logging.debug('No status got')
             time.sleep(10)
 
+    def act_version(self):
+        print __version__
+
     def run(self):
         action_fns = {'list-projects': self.act_list_projects,
                       'list-builds': self.act_list_builds,
                       'build': self.act_build,
                       'download': self.act_download,
-                      'monitor': self.act_monitor,}
+                      'monitor': self.act_monitor,
+                      'version': self.act_version,}
+        if not os.path.exists(self._args.config_dir):
+            os.makedirs(self._args.config_dir)
         if len(self._extra_args) > 0:
             action_fns[self._args.action](self._extra_args)
         else:
@@ -495,13 +514,16 @@ class MyArgumentParser(object):
                                   'One of {0} or {1} (%(default)s by default)'
                                   .format(', '.join(log_levels[:-1]),
                                           log_levels[-1])))
-        parser.add_argument('--log-dir', dest='log_dir', default='./',
+        parser.add_argument('--log-dir', dest='log_dir', default='/tmp/',
                             help=('Path to the directory to store log files'))
         parser.add_argument('-p', '--project', dest='proj_name', 
                             help=('codename such as dell-bto-precise-palm-beach-mlk-precise'))
         parser.add_argument('-b', dest='build_name', 
                             help=('build name such as 20130412-0'))
-        actions = ['list-projects', 'list-builds', 'build', 'download', 'monitor']
+        parser.add_argument('--config-dir', dest='config_dir', 
+                            default=os.path.join(os.path.expanduser('~'), '.config', 'ibs-cli'),
+                            help=SUPPRESS)
+        actions = ['list-projects', 'list-builds', 'build', 'download', 'monitor', 'version']
         parser.add_argument('action', choices=actions, 
                             default='check',
                             help=('Action is one of {0}'.
