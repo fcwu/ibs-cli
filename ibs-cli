@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__version__ = '0.4'
+__version__ = '0.5'
 __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
@@ -63,7 +63,8 @@ class IbsCli(object):
         br.set_handle_redirect(True)
         br.set_handle_referer(True)
         br.set_handle_robots(False)
-        br.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9 Firefox/3.0.1')]
+
+        br.addheaders = [('User-agent', 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:19.0) Gecko/20100101 Firefox/19.0')]
 
         ## Want debugging messages?
         if self._args.log_level <= logging.DEBUG:
@@ -120,16 +121,20 @@ class IbsCli(object):
                 return links
 
             logging.info('Open dir {0}'.format(url))
-            r = self.browser.open(base_url + url)
-            html = r.read()
             try:
+                r = self.browser.open(base_url + url)
+            except Exception as e:
+                logging.debug('browser.open: ' + str(e))
+                return
+            try:
+                html = r.read()
                 for link in find_records(html)[1:]:
                     if link[0][-1] == '/':
                         download_all(base_path, base_url, url + link[0])
                         continue
-                    if link[0].endswith('.iso.zsync'):
+                    if any(link[0].endswith(x) for x in ('.iso.zsync', '.img.zsync')):
                         continue
-                    if link[0].endswith('.iso'):
+                    if any(link[0].endswith(x) for x in ('.iso', '.img')):
                         compare_link = link[0] + '.zsync'
                         result = False
                         for link_check in find_records(html)[1:]:
@@ -162,7 +167,7 @@ class IbsCli(object):
                 with open(filename, 'wb+') as f:
                     chunk_read(r, file=f, report_hook=chunk_report)
             except Exception:
-                logging.error('Failed to download {0}{1}'.format(base_url, url))
+                logging.warn('Failed to download {0}{1}'.format(base_url, url))
 
         def download_one_zsync(base_path, base_url, url):
             if not os.path.exists('/usr/bin/zsync_curl'):
@@ -185,20 +190,23 @@ class IbsCli(object):
                 logging.debug('No cookie pysid found. Revert')
                 return False
             # infile
-            files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', 'iso', '*.iso'))
-            path_prefix = os.path.join(base_path, '..', '..')
-            biggest = 0
-            ifile = None
-            for file in files:
-                logging.debug('file 1: ' + file)
-                file_no_prefix = file[len(path_prefix) + 1:]
-                logging.debug('file 2: ' + file_no_prefix)
-                file_list = file_no_prefix.split(os.sep)
-                logging.debug('pair: ' + str((file_list[0], file_list[1])))
-                t = int(file_list[0] + file_list[1])
-                if t > biggest:
-                    biggest = t
-                    ifile = file
+            ifile = self._args.zsync_file
+            if not ifile:
+                files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', '*', '*.iso'))
+                if len(files) <= 0:
+                    files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', '*', '*.img'))
+                path_prefix = os.path.join(base_path, '..', '..')
+                biggest = 0
+                for file in files:
+                    logging.debug('file 1: ' + file)
+                    file_no_prefix = file[len(path_prefix) + 1:]
+                    logging.debug('file 2: ' + file_no_prefix)
+                    file_list = file_no_prefix.split(os.sep)
+                    logging.debug('pair: ' + str((file_list[0], file_list[1])))
+                    t = int(file_list[0] + file_list[1])
+                    if t > biggest:
+                        biggest = t
+                        ifile = file
             if not ifile:
                 logging.debug('No reference file found. Revert')
                 return False
@@ -283,6 +291,17 @@ class IbsCli(object):
             html = r.read()
         except Exception:
             logging.debug('no decideform')
+
+        # check last page is not a loginform
+        has_last_loginform = False
+        try:
+            br.select_form(name='loginform')
+            has_last_loginform = True
+        except Exception:
+            # pass
+            logging.debug('last loginform check: no')
+        if has_last_loginform:
+            raise PermissionDenied()
 
         if self._args.log_level <= logging.DEBUG:
             with open(os.path.join(self._args.log_dir, 'ibs-cli.html'), 'wb+') as f:
@@ -418,7 +437,8 @@ class IbsCli(object):
 
         record_url = page_url + date_url + nr_in_date_url
         #urls_to_fetch = ('build-log.txt', 'config/manifest.html')
-        urls_to_fetch = ('build-log.txt', 'config/manifest.html', 'images/iso/')
+        #urls_to_fetch = ('build-log.txt', 'config/acubens.manifest', 'images/usb-hdd/')
+        urls_to_fetch = ('build-log.txt', 'config/manifest.html', 'images/iso/', 'config/acubens.manifest', 'images/usb-hdd/')
         #urls_to_fetch = ('images/iso/',)
 
         path_to_store = \
@@ -462,6 +482,10 @@ class IbsCli(object):
             action_fns[self._args.action]()
 
 
+class PermissionDenied(Exception):
+    pass
+
+
 class LoggingConfiguration(object):
     @classmethod
     def set(cls, log_level, log_filename, append):
@@ -503,7 +527,6 @@ class MyArgumentParser(object):
         description = ('IBS command line interface. '
                        '')
 
-        # XXX
         epilog = ('')
         parser = ArgumentParser(description=description, epilog=epilog)
         log_levels = ['notset', 'debug', 'info',
@@ -520,6 +543,9 @@ class MyArgumentParser(object):
                             help=('codename such as dell-bto-precise-palm-beach-mlk-precise'))
         parser.add_argument('-b', dest='build_name', 
                             help=('build name such as 20130412-0'))
+        parser.add_argument('-z', '--zsync-input', dest='zsync_file', 
+                            default=None,
+                            help=('file path of zsync input path'))
         parser.add_argument('--config-dir', dest='config_dir', 
                             default=os.path.join(os.path.expanduser('~'), '.config', 'ibs-cli'),
                             help=SUPPRESS)
@@ -557,6 +583,8 @@ def main():
 
     try:
         IbsCli(args, extra_args).run()
+    except PermissionDenied:
+        logging.critical('Permission Denied (email, password or 2FA token error)')
     except KeyboardInterrupt:
         logging.info('^c')
 

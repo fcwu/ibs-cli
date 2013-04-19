@@ -1,0 +1,45 @@
+# bash completion for ibs-cli
+
+have ibs-cli &&
+_ibs_cli()
+{
+    COMPREPLY=()
+    local cur prev
+    _get_comp_words_by_ref -n : cur prev
+
+    _expand || return 0
+
+    case $prev in
+        --log-dir|-z|--zsync-input)
+            _filedir
+            return 0
+            ;;
+        --log-level)
+            COMPREPLY=( $( compgen -W 'debug info warning error critical' -- "$cur" ) )
+            return 0
+            ;;
+    esac
+
+    case $cur in
+        -*)
+            COMPREPLY=( $( compgen -W '-h --log-level --log-dir -p --project \
+                -b -z --zsync-input' -- "$cur" ) )
+            ;;
+        *)
+            COMPREPLY=( $( compgen -W 'list-projects list-builds build \
+                download monitor version ' -- "$cur" ) )
+            ;;
+
+    esac
+
+    return 0
+} &&
+complete -F _ibs_cli -o nospace ibs-cli
+
+# Local variables:
+# mode: shell-script
+# sh-basic-offset: 4
+# sh-indent-comment: t
+# indent-tabs-mode: nil
+# End:
+# ex: ts=4 sw=4 et filetype=sh
