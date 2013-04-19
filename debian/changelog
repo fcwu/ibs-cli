@@ -1,3 +1,13 @@
+ibs-cli (0.5) precise; urgency=low
+
+  * Fixed compatible issue of project dajia-precise-armel
+  * Added -z argument to assign zsync input file
+  * Added login error handling
+  * Added bash completion
+  * Changed user-agent
+
+ -- Doro Wu <doro.wu@canonical.com>  Fri, 19 Apr 2013 23:49:42 +0800
+
 ibs-cli (0.4) UNRELEASED; urgency=low
 
   * Fix 2-FA failed to login
