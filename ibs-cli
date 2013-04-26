@@ -19,6 +19,17 @@ import time
 
 import mechanize
 import cookielib
+from HTMLParser import HTMLParser
+
+class MLStripper(HTMLParser):
+    def __init__(self):
+        self.reset()
+        self.fed = []
+    def handle_data(self, d):
+        self.fed.append(d)
+    def get_data(self):
+        return ''.join(self.fed)
+
 
 class IbsCli(object):
     def __init__(self, args, extra_args):
@@ -453,12 +464,16 @@ class IbsCli(object):
             self.download(path_to_store, record_url, url)
 
     def act_monitor(self):
+        def strip_tags(html):
+            s = MLStripper()
+            s.feed(html)
+            return s.get_data()
         result = None
         while True:
             tmp = self.project_status()
             if len(tmp) != 0:
                 if tmp != result:
-                    logging.info('{0} - {1}'.format(self._args.proj_name, tmp))
+                    logging.info('{0} - {1}'.format(self._args.proj_name, strip_tags(tmp).strip()))
                     result = tmp
             else:
                 logging.debug('No status got')
