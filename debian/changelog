@@ -1,3 +1,11 @@
+ibs-cli (0.6) UNRELEASED; urgency=low
+
+  * Redirect output from stderr to stdout
+  * Strip html tags of monitor output
+  * Added -g argument for OSD of monitor command
+
+ -- Doro Wu <doro.wu@canonical.com>  Fri, 26 Apr 2013 17:25:09 +0800
+
 ibs-cli (0.5) precise; urgency=low
 
   * Fixed compatible issue of project dajia-precise-armel
