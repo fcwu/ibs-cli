@@ -23,7 +23,7 @@ bzr: ibs-cli-bzr
 		&& bzr commit -m "auto pull from git"
 
 ibs-cli-bzr:
-	bzr branch lp:~fcwu-tw/+junk/ibs-cli ibs-cli-bzr
+	bzr branch lp:~oem-solutions-group/oem-dev-tools/ibs-cli ibs-cli-bzr
 
 clean:
 	@for series in ${SERIES} ; do \

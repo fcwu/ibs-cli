@@ -16,6 +16,7 @@ import glob
 import subprocess
 import json
 import time
+import urllib2
 
 import mechanize
 import cookielib
@@ -470,14 +471,23 @@ class IbsCli(object):
             return s.get_data()
         result = None
         while True:
-            tmp = self.project_status()
-            if len(tmp) != 0:
-                if tmp != result:
-                    logging.info('{0} - {1}'.format(self._args.proj_name, strip_tags(tmp).strip()))
-                    result = tmp
-            else:
-                logging.debug('No status got')
-            time.sleep(10)
+            try:
+                tmp = self.project_status()
+                if len(tmp) != 0:
+                    if tmp != result:
+                        text = strip_tags(tmp).strip()
+                        logging.info('{0} - {1}'.format(
+                                     self._args.proj_name, text))
+                        if self._args.osd:
+                            subprocess.call('notify-send "IBS - {0}" "{1}"'.format(
+                                            self._args.proj_name, text)
+                                            , shell=True)
+                        result = tmp
+                else:
+                    logging.debug('No status got')
+                time.sleep(10)
+            except urllib2.URLError:
+                logging.debug('URLError when act_monitor')
 
     def act_version(self):
         print __version__
@@ -564,6 +574,8 @@ class MyArgumentParser(object):
         parser.add_argument('--config-dir', dest='config_dir', 
                             default=os.path.join(os.path.expanduser('~'), '.config', 'ibs-cli'),
                             help=SUPPRESS)
+        parser.add_argument('-g', '--osd', action='store_true', dest="osd", default=False,
+                            help=('show OSD notify during monitor'))
         actions = ['list-projects', 'list-builds', 'build', 'download', 'monitor', 'version']
         parser.add_argument('action', choices=actions, 
                             default='check',

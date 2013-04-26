@@ -23,7 +23,7 @@ _ibs_cli()
     case $cur in
         -*)
             COMPREPLY=( $( compgen -W '-h --log-level --log-dir -p --project \
-                -b -z --zsync-input' -- "$cur" ) )
+                -b -z --zsync-input -g' -- "$cur" ) )
             ;;
         *)
             COMPREPLY=( $( compgen -W 'list-projects list-builds build \
