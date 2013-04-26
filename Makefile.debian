@@ -19,8 +19,7 @@ bzr: ibs-cli-bzr
 	cd ibs-cli-bzr \
 		&& rm -rf * \
 		&& cp -r ../${GIT_SRC}/* ./ \
-		&& bzr add . \
-		&& bzr commit -m "auto pull from git"
+		&& debcommit
 
 ibs-cli-bzr:
 	bzr branch lp:~oem-solutions-group/oem-dev-tools/ibs-cli ibs-cli-bzr
