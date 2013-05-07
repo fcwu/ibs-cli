@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__version__ = '0.5'
+__version__ = '0.6'
 __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
@@ -17,7 +17,7 @@ import subprocess
 import json
 import time
 import urllib2
-
+import shutil
 import mechanize
 import cookielib
 from HTMLParser import HTMLParser
@@ -157,11 +157,14 @@ class IbsCli(object):
                         if result:
                             break
                         logging.info('No zsync file or error during process: ' + url + link[0])
+                        result = download_one_rsync(base_path, base_url, url + link[0])
+                        if result:
+                            break
                     download_one(base_path, base_url, url + link[0])
             except IndexError:
                 pass
 
-        def download_one(base_path, base_url, url, not_download=False):
+        def download_one(base_path, base_url, url, not_download=False, ifile=False):
             logging.debug('Open file {0}'.format(url))
 
             filename = os.path.join(base_path, url.replace('/', os.sep))
@@ -170,6 +173,12 @@ class IbsCli(object):
                 if not os.path.exists(dirname):
                     logging.debug('Create dir: ' + dirname)
                     os.makedirs(dirname)
+            if ifile:
+                try:
+                    logging.debug('Copy file from {0} to {1}'.format(ifile, filename))
+                    shutil.copyfile(ifile, filename)
+                except Exception:
+                    logging.warn('Failed to copy from {0} to {1}'.format(ifile, filename))
             if not_download:
                 return filename
 
@@ -180,6 +189,45 @@ class IbsCli(object):
                     chunk_read(r, file=f, report_hook=chunk_report)
             except Exception:
                 logging.warn('Failed to download {0}{1}'.format(base_url, url))
+
+        def download_one_rsync(base_path, base_url, url):
+            if not os.path.exists('/usr/bin/rsync'):
+                logging.debug('No rsync found in /usr/bin. Revert')
+                return False
+            logging.debug('fork rsync process for {0}'.format(url))
+            # infile
+            ifile = ''
+            files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', '*', '*.iso'))
+            if len(files) <= 0:
+                files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', '*', '*.img'))
+            path_prefix = os.path.join(base_path, '..', '..')
+            biggest = 0
+            for file in files:
+                logging.debug('file 1: ' + file)
+                file_no_prefix = file[len(path_prefix) + 1:]
+                logging.debug('file 2: ' + file_no_prefix)
+                file_list = file_no_prefix.split(os.sep)
+                logging.debug('pair: ' + str((file_list[0], file_list[1])))
+                t = int(file_list[0] + file_list[1])
+                if t > biggest:
+                    biggest = t
+                    ifile = file
+            if not ifile:
+                logging.debug('No reference file found. Revert')
+                return False
+            # outfile
+            ofile = download_one(base_path, base_url, url, True, ifile)
+            # Assuming username and ssh key has been setup in .ssh/config
+            rsync_url = base_url.replace('https://oem-share.canonical.com', 'oem-share.canonical.com:/srv/oem-share.canonical.com/www') + url
+            cmd = 'rsync -Pv {url} {ofile}'.format(url=rsync_url, ofile=ofile)
+            logging.info('Start rsync process')
+            logging.debug('Run command: ' + cmd)
+            result = subprocess.call(cmd, shell=True)
+            logging.debug('Command result: ' + str(result))
+            if result != 0:
+                logging.warn('rsync failed with result ' + str(result))
+                return False
+            return True
 
         def download_one_zsync(base_path, base_url, url):
             if not os.path.exists('/usr/bin/zsync_curl'):
