@@ -1,5 +1,5 @@
 GIT_SRC = ibs-cli-git
-SERIES = precise quantal raring
+SERIES = precise raring
 
 .PYONY: ${SERIES}
 
