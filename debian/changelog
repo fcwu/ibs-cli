@@ -1,3 +1,9 @@
+ibs-cli (0.8) UNRELEASED; urgency=low
+
+  * skip archive directory (LP#1177844)
+
+ -- Shuduo Sang <shuduo.sang@canonical.com>  Wed, 08 May 2013 23:30:45 +0800
+
 ibs-cli (0.7) UNRELEASED; urgency=low
 
   * Add rsync support since some projects still don't have zsync support

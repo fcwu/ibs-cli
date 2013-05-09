@@ -478,6 +478,8 @@ class IbsCli(object):
             links = find_records(html)
             try:
                 date_url = links[-1][0]
+		if date_url == 'archive/':
+			date_url = links[-2][0]
                 r = br.open(page_url + date_url)
                 html = r.read()
             except IndexError:
