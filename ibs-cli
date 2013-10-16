@@ -6,7 +6,9 @@ __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
 
-import os, sys
+import os
+from os.path import join as pjoin
+import sys
 import getpass
 import re
 import logging
@@ -22,12 +24,15 @@ import mechanize
 import cookielib
 from HTMLParser import HTMLParser
 
+
 class MLStripper(HTMLParser):
     def __init__(self):
         self.reset()
         self.fed = []
+
     def handle_data(self, d):
         self.fed.append(d)
+
     def get_data(self):
         return ''.join(self.fed)
 
@@ -36,12 +41,6 @@ class IbsCli(object):
     def __init__(self, args, extra_args):
         self._args = args
         self._extra_args = extra_args
-
-    @property
-    def projects(self):
-        """ Return projects
-        """
-        pass
 
     @property
     def project_build_results(self, project_name):
@@ -71,12 +70,14 @@ class IbsCli(object):
 
         # Browser options
         br.set_handle_equiv(True)
-        br.set_handle_gzip(False) #XXX messes up stdin
+        br.set_handle_gzip(False)  # XXX messes up stdin
         br.set_handle_redirect(True)
         br.set_handle_referer(True)
         br.set_handle_robots(False)
 
-        br.addheaders = [('User-agent', 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:19.0) Gecko/20100101 Firefox/19.0')]
+        br.addheaders = [('User-agent',
+                          'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:19.0) '
+                          'Gecko/20100101 Firefox/19.0')]
 
         ## Want debugging messages?
         if self._args.log_level <= logging.DEBUG:
@@ -85,17 +86,12 @@ class IbsCli(object):
             br.set_debug_responses(True)
         return self._br
 
-    def build_project(self, project_name):
-        """ Build
-        """
-        pass
-
     def download(self, base_path, base_url, url):
         def chunk_report(bytes_so_far, chunk_size, total_size):
             percent = float(bytes_so_far) / total_size
-            percent = round(percent*100, 2)
-            sys.stdout.write("Downloaded %d of %d bytes (%0.2f%%)\r" % 
-                (bytes_so_far, total_size, percent))
+            percent = round(percent * 100, 2)
+            sys.stdout.write("Downloaded %d of %d bytes (%0.2f%%)\r".format(
+                             (bytes_so_far, total_size, percent)))
 
             if bytes_so_far >= total_size:
                 sys.stdout.write('\n')
@@ -120,12 +116,13 @@ class IbsCli(object):
 
         def download_all(base_path, base_url, url):
             def find_records(html):
-                record_regex = re.compile('<tr><td.*<a href=["\']?([^"\']*)["\']?>(.*)</a>.*</td></tr>')
+                regex = re.compile('<tr><td.*<a href=["\']?([^"\']*)["\']?>'
+                                   '(.*)</a>.*</td></tr>')
                 links = []
                 for line in html.split('\n'):
                     line.strip()
                     #print line
-                    m = record_regex.match(line)
+                    m = regex.match(line)
                     if not m:
                         continue
                     #print 'bingo: {0}:{1}'.format(m.group(1), m.group(2))
@@ -144,7 +141,8 @@ class IbsCli(object):
                     if link[0][-1] == '/':
                         download_all(base_path, base_url, url + link[0])
                         continue
-                    if any(link[0].endswith(x) for x in ('.iso.zsync', '.img.zsync')):
+                    if any(link[0].endswith(x) for x in ('.iso.zsync',
+                                                         '.img.zsync')):
                         continue
                     if any(link[0].endswith(x) for x in ('.iso', '.img')):
                         compare_link = link[0] + '.zsync'
@@ -152,19 +150,25 @@ class IbsCli(object):
                         for link_check in find_records(html)[1:]:
                             if link_check[0] != compare_link:
                                 continue
-                            result = download_one_zsync(base_path, base_url, url + link[0])
+                            result = download_one_zsync(base_path,
+                                                        base_url,
+                                                        url + link[0])
                             break
                         if result:
                             break
-                        logging.info('No zsync file or error during process: ' + url + link[0])
-                        result = download_one_rsync(base_path, base_url, url + link[0])
+                        logging.info('No zsync file or error during process: '
+                                     + url + link[0])
+                        result = download_one_rsync(base_path,
+                                                    base_url,
+                                                    url + link[0])
                         if result:
                             break
                     download_one(base_path, base_url, url + link[0])
             except IndexError:
                 pass
 
-        def download_one(base_path, base_url, url, not_download=False, ifile=False):
+        def download_one(base_path, base_url, url, not_download=False,
+                         ifile=False):
             logging.debug('Open file {0}'.format(url))
 
             filename = os.path.join(base_path, url.replace('/', os.sep))
@@ -175,10 +179,12 @@ class IbsCli(object):
                     os.makedirs(dirname)
             if ifile:
                 try:
-                    logging.debug('Copy file from {0} to {1}'.format(ifile, filename))
+                    logging.debug('Copy file from {0} to {1}'.format(
+                        ifile, filename))
                     shutil.copyfile(ifile, filename)
                 except Exception:
-                    logging.warn('Failed to copy from {0} to {1}'.format(ifile, filename))
+                    logging.warn('Failed to copy from {0} to {1}'.format(
+                        ifile, filename))
             if not_download:
                 return filename
 
@@ -197,9 +203,11 @@ class IbsCli(object):
             logging.debug('fork rsync process for {0}'.format(url))
             # infile
             ifile = ''
-            files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', '*', '*.iso'))
+            files = glob.glob(os.path.join(base_path, '..', '..', '*', '*',
+                                           'images', '*', '*.iso'))
             if len(files) <= 0:
-                files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', '*', '*.img'))
+                files = glob.glob(os.path.join(base_path, '..', '..', '*', '*',
+                                               'images', '*', '*.img'))
             path_prefix = os.path.join(base_path, '..', '..')
             biggest = 0
             for file in files:
@@ -218,7 +226,9 @@ class IbsCli(object):
             # outfile
             ofile = download_one(base_path, base_url, url, True, ifile)
             # Assuming username and ssh key has been setup in .ssh/config
-            rsync_url = base_url.replace('https://oem-share.canonical.com', 'oem-share.canonical.com:/srv/oem-share.canonical.com/www') + url
+            rsync_url = base_url.replace('https://oem-share.canonical.com',
+                                         'oem-share.canonical.com:/srv/'
+                                         'oem-share.canonical.com/www') + url
             cmd = 'rsync -Pv {url} {ofile}'.format(url=rsync_url, ofile=ofile)
             logging.info('Start rsync process')
             logging.debug('Run command: ' + cmd)
@@ -236,7 +246,8 @@ class IbsCli(object):
             logging.debug('fork zsync process for {0}'.format(url))
             # cookie
             cookie_str = None
-            with open(os.path.join(self._args.config_dir, 'mycookie'), 'r') as f:
+            cookie_file = os.path.join(self._args.config_dir, 'mycookie')
+            with open(cookie_file, 'r') as f:
                 for line in f:
                     loc_pysid = line.find('pysid=')
                     if loc_pysid < 0:
@@ -252,10 +263,12 @@ class IbsCli(object):
             # infile
             ifile = self._args.zsync_file
             if not ifile:
-                files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', '*', '*.iso'))
+                files = glob.glob(pjoin(base_path, '..', '..', '*', '*',
+                                        'images', '*', '*.iso'))
                 if len(files) <= 0:
-                    files = glob.glob(os.path.join(base_path, '..', '..', '*', '*', 'images', '*', '*.img'))
-                path_prefix = os.path.join(base_path, '..', '..')
+                    files = glob.glob(pjoin(base_path, '..', '..', '*',
+                                            '*', 'images', '*', '*.img'))
+                path_prefix = pjoin(base_path, '..', '..')
                 biggest = 0
                 for file in files:
                     logging.debug('file 1: ' + file)
@@ -273,10 +286,10 @@ class IbsCli(object):
             # outfile
             ofile = download_one(base_path, base_url, url, True)
             cmd = 'zsync_curl -c {cookie} {url} -i {ifile} -o {ofile}'.format(
-                    cookie=cookie_str,
-                    url=base_url + url + '.zsync',
-                    ifile=ifile,
-                    ofile=ofile)
+                  cookie=cookie_str,
+                  url=base_url + url + '.zsync',
+                  ifile=ifile,
+                  ofile=ofile)
             logging.info('Start zsync process')
             logging.debug('Run command: ' + cmd)
             result = subprocess.call(cmd, shell=True)
@@ -326,7 +339,7 @@ class IbsCli(object):
 
         try:
             br.select_form(name='loginform')
-            br['email']    = raw_input('username: ')
+            br['email'] = raw_input('email: ')
             br['password'] = getpass.getpass()
             logging.debug('open loginform')
             r = br.submit()
@@ -364,9 +377,10 @@ class IbsCli(object):
             raise PermissionDenied()
 
         if self._args.log_level <= logging.DEBUG:
-            with open(os.path.join(self._args.log_dir, 'ibs-cli.html'), 'wb+') as f:
+            with open(pjoin(self._args.log_dir, 'ibs-cli.html'), 'wb+') as f:
                 f.write(html)
-        self.cookie.save(os.path.join(self._args.config_dir, 'mycookie'), ignore_discard=True)
+        self.cookie.save(pjoin(self._args.config_dir, 'mycookie'),
+                         ignore_discard=True)
         return html
 
     def project_status(self):
@@ -396,8 +410,8 @@ class IbsCli(object):
         #with open('p1.html', 'r') as f:
         #    #f.write(html)
         #    html = f.read()
-        projects_regex = re.compile('<a href="/projects/(.+)/">(.+)</a>'
-                                    , re.MULTILINE)
+        projects_regex = re.compile('<a href="/projects/(.+)/">(.+)</a>',
+                                    re.MULTILINE)
         logging.info('  {0:40}   {1}'.format('[Codename]', '[Title]'))
         for p in projects_regex.finditer(html):
             logging.info('- {0:40} - {1}'.format(p.group(1), p.group(2)))
@@ -434,16 +448,16 @@ class IbsCli(object):
         #with open('p1.html', 'r') as f:
         #    f.write(html)
         #    html = f.read()
-        logging.info('{0} - {1}'.format(self._args.proj_name, self.project_status()))
+        logging.info('{0} - {1}'.format(self._args.proj_name,
+                                        self.project_status()))
 
     def act_download(self):
         """ Download
         """
         def find_records(html):
-            record_regex = re.compile(
-                    '<tr><td.*'
-                    '<a href=["\']?([^"\']*)["\']?>(.*)</a>'
-                    '.*</td></tr>')
+            record_regex = re.compile('<tr><td.*'
+                                      '<a href=["\']?([^"\']*)["\']?>(.*)</a>'
+                                      '.*</td></tr>')
             links = []
             for line in html.split('\n'):
                 line.strip()
@@ -459,11 +473,12 @@ class IbsCli(object):
             logging.critical('No project name provided (-p proj_name)')
             return
         logging.info('Downloading...')
-        page_url = 'https://oem-share.canonical.com/oem/cesg-builds/{0}/'.format(
-                    self._args.proj_name)
+        page_url = ('https://oem-share.canonical.com/'
+                    'oem/cesg-builds/{0}/'.format(
+                    self._args.proj_name))
         html = self.fetch_page(page_url)
         br = self.browser
-        
+
         if self._args.build_name:
             try:
                 date_url, nr_in_date_url = self._args.build_name.split('-')
@@ -478,15 +493,16 @@ class IbsCli(object):
             links = find_records(html)
             try:
                 date_url = links[-1][0]
-		if date_url == 'archive/':
-			date_url = links[-2][0]
+                if date_url == 'archive/':
+                    date_url = links[-2][0]
                 r = br.open(page_url + date_url)
                 html = r.read()
             except IndexError:
                 print 'Error follow link'
                 return
             except Exception:
-                print 'Error follow link {0}{1}YYYYMMDD'.format(page_url, date_url)
+                print 'Error follow link {0}{1}YYYYMMDD'.format(page_url,
+                                                                date_url)
                 return
 
             # project/YYYYMMDD/N
@@ -499,14 +515,16 @@ class IbsCli(object):
 
         record_url = page_url + date_url + nr_in_date_url
         #urls_to_fetch = ('build-log.txt', 'config/manifest.html')
-        #urls_to_fetch = ('build-log.txt', 'config/acubens.manifest', 'images/usb-hdd/')
-        urls_to_fetch = ('build-log.txt', 'config/manifest.html', 'images/iso/', 'config/acubens.manifest', 'images/usb-hdd/')
+        #urls_to_fetch = ('build-log.txt', 'config/acubens.manifest',
+        #                 'images/usb-hdd/')
+        urls_to_fetch = ('build-log.txt', 'config/manifest.html',
+                         'images/iso/', 'config/acubens.manifest',
+                         'images/usb-hdd/')
         #urls_to_fetch = ('images/iso/',)
 
-        path_to_store = \
-            os.path.join('download', self._args.proj_name,
-                         date_url if date_url[-1] != '/' else date_url[:-1], 
-                         nr_in_date_url if nr_in_date_url[-1] != '/' else nr_in_date_url[:-1])
+        path_to_store = pjoin('download', self._args.proj_name,
+                              date_url.rstrip('/'),
+                              nr_in_date_url.rstrip('/'))
         if not os.path.exists(path_to_store):
             print 'Create dir: ' + path_to_store
             os.makedirs(path_to_store)
@@ -519,6 +537,7 @@ class IbsCli(object):
             s = MLStripper()
             s.feed(html)
             return s.get_data()
+
         result = None
         while True:
             try:
@@ -529,9 +548,9 @@ class IbsCli(object):
                         logging.info('{0} - {1}'.format(
                                      self._args.proj_name, text))
                         if self._args.osd:
-                            subprocess.call('notify-send "IBS - {0}" "{1}"'.format(
-                                            self._args.proj_name, text)
-                                            , shell=True)
+                            cmd = 'notify-send "IBS - {0}" "{1}"'.format(
+                                  self._args.proj_name, text)
+                            subprocess.call(cmd, shell=True)
                         result = tmp
                 else:
                     logging.debug('No status got')
@@ -542,13 +561,17 @@ class IbsCli(object):
     def act_version(self):
         print __version__
 
+    def act_add(self):
+        pass
+
     def run(self):
         action_fns = {'list-projects': self.act_list_projects,
                       'list-builds': self.act_list_builds,
                       'build': self.act_build,
                       'download': self.act_download,
                       'monitor': self.act_monitor,
-                      'version': self.act_version,}
+                      'version': self.act_version,
+                      'add': self.act_add}
         if not os.path.exists(self._args.config_dir):
             os.makedirs(self._args.config_dir)
         if len(self._extra_args) > 0:
@@ -614,20 +637,24 @@ class MyArgumentParser(object):
                                           log_levels[-1])))
         parser.add_argument('--log-dir', dest='log_dir', default='/tmp/',
                             help=('Path to the directory to store log files'))
-        parser.add_argument('-p', '--project', dest='proj_name', 
-                            help=('codename such as dell-bto-precise-palm-beach-mlk-precise'))
-        parser.add_argument('-b', dest='build_name', 
+        parser.add_argument('-p', '--project', dest='proj_name',
+                            help=('codename such as '
+                                  'dell-bto-precise-palm-beach-mlk-precise'))
+        parser.add_argument('-b', dest='build_name',
                             help=('build name such as 20130412-0'))
-        parser.add_argument('-z', '--zsync-input', dest='zsync_file', 
+        parser.add_argument('-z', '--zsync-input', dest='zsync_file',
                             default=None,
                             help=('file path of zsync input path'))
-        parser.add_argument('--config-dir', dest='config_dir', 
-                            default=os.path.join(os.path.expanduser('~'), '.config', 'ibs-cli'),
+        parser.add_argument('--config-dir', dest='config_dir',
+                            default=os.path.join(os.path.expanduser('~'),
+                                                 '.config', 'ibs-cli'),
                             help=SUPPRESS)
-        parser.add_argument('-g', '--osd', action='store_true', dest="osd", default=False,
+        parser.add_argument('-g', '--osd', action='store_true', dest="osd",
+                            default=False,
                             help=('show OSD notify during monitor'))
-        actions = ['list-projects', 'list-builds', 'build', 'download', 'monitor', 'version']
-        parser.add_argument('action', choices=actions, 
+        actions = ['list-projects', 'list-builds', 'build', 'download',
+                   'monitor', 'version', 'add']
+        parser.add_argument('action', choices=actions,
                             default='check',
                             help=('Action is one of {0}'.
                                   format(', '.join(actions))))
@@ -661,10 +688,11 @@ def main():
     try:
         IbsCli(args, extra_args).run()
     except PermissionDenied:
-        logging.critical('Permission Denied (email, password or 2FA token error)')
+        logging.critical('Permission Denied (email, password or 2FA token'
+                         'error)')
     except KeyboardInterrupt:
         logging.info('^c')
 
 
-if __name__ ==  '__main__':
+if __name__ == '__main__':
     main()
