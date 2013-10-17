@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__version__ = '0.7'
+__version__ = '0.8'
 __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
@@ -90,8 +90,8 @@ class IbsCli(object):
         def chunk_report(bytes_so_far, chunk_size, total_size):
             percent = float(bytes_so_far) / total_size
             percent = round(percent * 100, 2)
-            sys.stdout.write("Downloaded %d of %d bytes (%0.2f%%)\r".format(
-                             (bytes_so_far, total_size, percent)))
+            sys.stdout.write("Downloaded {0} of {1} bytes ({2:.2f})\r".format(
+                             bytes_so_far, total_size, percent))
 
             if bytes_so_far >= total_size:
                 sys.stdout.write('\n')
@@ -562,7 +562,41 @@ class IbsCli(object):
         print __version__
 
     def act_add(self):
-        pass
+        # ./ibs-cli -a "name=dell-bto-precise-fish-init-test-4\
+        #&title=Dell precise fish-init-test 3&project_group=So\
+        #merville&arch=amd64&series=precise&launchpad_project=\
+        #&status=devel&config_url=lp:~oem-solutions-engineers/\
+        #bugsy-config/dell-bto-precise-fish-init-test&notes=" add
+
+        args = self._args.add_project_args
+        kvs = dict()
+        for arg in args.split('&'):
+            k, v = arg.split('=', 2)
+            kvs[k] = v
+        page_url = 'https://oem-ibs.canonical.com/projects/+add/'
+        html = self.fetch_page(page_url)
+        with open('add-test.html', 'wb+') as f:
+            f.write(html)
+        br = self.browser
+        #logging.info(str(br.forms()))
+        #br.form = br.forms().next()
+        br.select_form(nr=0)
+        logging.info(str(br.form))
+        for k in kvs:
+            logging.debug('set parameters: {}={}'.format(k, kvs[k]))
+            if isinstance(br.form.find_control(k), mechanize.ListControl):
+                br[k] = (kvs[k],)
+            else:
+                br[k] = kvs[k]
+        r = br.submit()
+        html = r.read()
+        with open('add-test-submited.html', 'wb+') as f:
+            f.write(html)
+        #br['id_title'] = 'Dell precise '
+        #br['id_project_group'] = 'Somerville'
+        #br['id_arch'] = 'amd64'
+        #br['id_series'] = 'precise'
+        #br['id_config_url'] = 'Dell precise '
 
     def run(self):
         action_fns = {'list-projects': self.act_list_projects,
@@ -652,8 +686,17 @@ class MyArgumentParser(object):
         parser.add_argument('-g', '--osd', action='store_true', dest="osd",
                             default=False,
                             help=('show OSD notify during monitor'))
+        #parser.add_argument('-a', '--add-project-args', dest="add_project_args",
+        #                    default='',
+        #                    help=('arguments for adding project. It may be'
+        #                          'name=dell-bto-precise-fish-init-test&'
+        #                          'title=Dell precise fish-init-test&'
+        #                          'project_group=Somerville&'
+        #                          'arch=amd64&'
+        #                          'series=precise&'
+        #                          'config_url=lp:~oem-solutions-engineers/bugsy-config/dell-bto-precise-titan'))
         actions = ['list-projects', 'list-builds', 'build', 'download',
-                   'monitor', 'version', 'add']
+                   'monitor', 'version']
         parser.add_argument('action', choices=actions,
                             default='check',
                             help=('Action is one of {0}'.
