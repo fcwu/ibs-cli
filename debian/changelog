@@ -1,3 +1,9 @@
+ibs-cli (1.3) precise; urgency=low
+
+  * Fixed zsync sometimes download error
+
+ -- Doro Wu <doro.wu@canonical.com>  Mon, 21 Oct 2013 17:10:23 +0800
+
 ibs-cli (1.2) precise; urgency=low
 
   * Fixed download error

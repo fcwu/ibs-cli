@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__version__ = '1.2'
+__version__ = '1.3'
 __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
@@ -23,6 +23,25 @@ import shutil
 import mechanize
 import cookielib
 from HTMLParser import HTMLParser
+
+
+#The terminal has 8 colors with codes from 0 to 7
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
+
+#These are the sequences need to get colored ouput
+RESET_SEQ = "\033[0m"
+COLOR_SEQ = "\033[1;%dm"
+BOLD_SEQ = "\033[1m"
+
+#The background is set with 40 plus the number of the color,
+#and the foreground with 30
+COLORS = {
+    'WARNING':  COLOR_SEQ % (30 + YELLOW) + 'WARNING' + RESET_SEQ,
+    'INFO':     COLOR_SEQ % (30 + WHITE) + 'INFO' + RESET_SEQ,
+    'DEBUG':    COLOR_SEQ % (30 + BLUE) + 'DEBUG' + RESET_SEQ,
+    'CRITICAL': COLOR_SEQ % (30 + YELLOW) + 'CRITICAL' + RESET_SEQ,
+    'ERROR':    COLOR_SEQ % (30 + RED) + 'ERROR' + RESET_SEQ,
+}
 
 
 class MLStripper(HTMLParser):
@@ -86,6 +105,13 @@ class IbsCli(object):
             br.set_debug_responses(True)
         return self._br
 
+    @property
+    def pysid(self):
+        if hasattr(self, '_pysid'):
+            return self._pysid
+        return None
+
+
     def download(self, base_path, base_url, url):
         def chunk_report(bytes_so_far, chunk_size, total_size):
             percent = float(bytes_so_far) / total_size
@@ -133,14 +159,12 @@ class IbsCli(object):
                 if self._args.zsync_file is None:
                     return False
                 compare_link = link[0] + '.zsync'
-                result = False
                 for link_check in find_records(html)[1:]:
                     if link_check[0] == compare_link:
-                        while not result:
-                            logging.info('Trying download via zsync...')
-                            result = download_one_zsync(base_path,
-                                                        base_url,
-                                                        url + link[0])
+                        logging.info('Trying download via zsync...')
+                        download_one_zsync(base_path,
+                                           base_url,
+                                           url + link[0])
                         break
                 else:
                     logging.info('No zsync file or error '
@@ -189,9 +213,9 @@ class IbsCli(object):
                     logging.debug('Copy file from {0} to {1}'.format(
                         ifile, filename))
                     shutil.copyfile(ifile, filename)
-                except Exception:
-                    logging.warn('Failed to copy from {0} to {1}'.format(
-                        ifile, filename))
+                except Exception as e:
+                    logging.warn('Failed to copy from {0} to {1}: {2}'.format(
+                        ifile, filename, e))
             if not_download:
                 return filename
 
@@ -201,7 +225,8 @@ class IbsCli(object):
                 with open(filename, 'wb+') as f:
                     chunk_read(r, f, report_hook=chunk_report)
             except Exception as e:
-                logging.warn('Failed to download {0}{1}: {2}'.format(base_url, url, e))
+                logging.warn('Failed to download {0}{1}: {2}'.format(base_url,
+                                                                     url, e))
 
         def download_one_rsync(base_path, base_url, url):
             if not os.path.exists('/usr/bin/rsync'):
@@ -252,21 +277,10 @@ class IbsCli(object):
                 return False
             logging.debug('fork zsync process for {0}'.format(url))
             # cookie
-            cookie_str = None
-            cookie_file = os.path.join(self._args.config_dir, 'mycookie')
-            with open(cookie_file, 'r') as f:
-                for line in f:
-                    loc_pysid = line.find('pysid=')
-                    if loc_pysid < 0:
-                        continue
-                    loc_pysid_end = line.find(';', loc_pysid)
-                    if loc_pysid_end < 0:
-                        continue
-                    cookie_str = line[loc_pysid:loc_pysid_end]
-                    break
-            if not cookie_str:
+            if self.pysid is None:
                 logging.error('No cookie pysid found. Revert')
                 return False
+            cookie_str = self.pysid
             # infile
             ifile = self._args.zsync_file
             if not ifile:
@@ -397,7 +411,25 @@ class IbsCli(object):
                 f.write(html)
         self.cookie.save(pjoin(self._args.config_dir, 'mycookie'),
                          ignore_discard=True)
+        self.update_pysid()
         return html
+
+    def update_pysid(self):
+        if hasattr(self, '_pysid'):
+            return
+        cookie_str = None
+        cookie_file = os.path.join(self._args.config_dir, 'mycookie')
+        with open(cookie_file, 'r') as f:
+            for line in f:
+                loc_pysid = line.find('pysid=')
+                if loc_pysid < 0:
+                    continue
+                loc_pysid_end = line.find(';', loc_pysid)
+                if loc_pysid_end < 0:
+                    continue
+                cookie_str = line[loc_pysid:loc_pysid_end]
+                self._pysid = cookie_str
+                break
 
     def project_status(self):
         if not self._args.proj_name:
@@ -635,7 +667,24 @@ class PermissionDenied(Exception):
     pass
 
 
+class ColoredFormatter(logging.Formatter):
+    def __init__(self, msg, use_color=True):
+        logging.Formatter.__init__(self, msg)
+        self.use_color = use_color
+
+    def format(self, record):
+        if self.use_color:
+            record.levelname = COLORS.get(record.levelname, record.levelname)
+        return logging.Formatter.format(self, record)
+
+
 class LoggingConfiguration(object):
+    COLOR_FORMAT = "[" + BOLD_SEQ + "%(asctime)s" + RESET_SEQ + \
+                   "][%(levelname)s] %(message)s (" + BOLD_SEQ + \
+                   "%(filename)s" + RESET_SEQ + ":%(lineno)d)"
+    NO_COLOR_FORMAT = "[%(asctime)s][%(levelname)s] %(message)s " \
+                      "(%(filename)s:%(lineno)d)"
+
     @classmethod
     def set(cls, log_level, log_filename, append):
         """ Configure a rotating file logging
@@ -646,7 +695,10 @@ class LoggingConfiguration(object):
         # Log to sys.stderr using log level passed through command line
         if log_level != logging.NOTSET:
             log_handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(levelname)-8s %(message)s')
+            if sys.platform.find('linux') >= 0:
+                formatter = ColoredFormatter(cls.COLOR_FORMAT)
+            else:
+                formatter = ColoredFormatter(cls.NO_COLOR_FORMAT, False)
             log_handler.setFormatter(formatter)
             log_handler.setLevel(log_level)
             logger.addHandler(log_handler)
