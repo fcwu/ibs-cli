@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__version__ = '1.0'
+__version__ = '1.1'
 __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
@@ -372,6 +372,15 @@ class IbsCli(object):
         except Exception:
             logging.debug('no decideform')
 
+        try:
+            if br.title().find('in progress') != -1:
+                logging.debug('in progress')
+                br.select_form(nr=0)
+                r = br.submit()
+                html = r.read()
+        except Exception as e:
+            logging.debug('no in progress exception: ' + str(e))
+
         # check last page is not a loginform
         has_last_loginform = False
         try:
@@ -524,10 +533,11 @@ class IbsCli(object):
         #urls_to_fetch = ('build-log.txt', 'config/manifest.html')
         #urls_to_fetch = ('build-log.txt', 'config/acubens.manifest',
         #                 'images/usb-hdd/')
-        urls_to_fetch = ('build-log.txt', 'config/manifest.html',
-                         'images/iso/', 'config/acubens.manifest',
-                         'images/usb-hdd/')
+        urls_to_fetch = ['build-log.txt', 'config/manifest.html',
+                         'config/acubens.manifest', 'config.tgz']
         #urls_to_fetch = ('images/iso/',)
+        if not self._args.no_image:
+            urls_to_fetch.extend(['images/iso/', 'images/usb-hdd/'])
 
         path_to_store = pjoin('download', self._args.proj_name,
                               date_url.rstrip('/'),
@@ -693,6 +703,9 @@ class MyArgumentParser(object):
         parser.add_argument('-g', '--osd', action='store_true', dest="osd",
                             default=False,
                             help=('show OSD notify during monitor'))
+        parser.add_argument('--no-download-image', action='store_true',
+                            dest="no_image", default=False,
+                            help=('Not to download image'))
         #parser.add_argument('-a', '--add-project-args', dest="add_project_args",
         #                    default='',
         #                    help=('arguments for adding project. It may be'

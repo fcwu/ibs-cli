@@ -1,9 +1,22 @@
-ibs-cli (1.0) UNRELEASED; urgency=low
+ibs-cli (1.1) precise; urgency=low
+
+  * cherry-pick bzr 0.9 to git
+
+ -- Doro Wu <doro.wu@canonical.com>  Mon, 21 Oct 2013 14:05:31 +0800
+
+ibs-cli (1.0) precise; urgency=low
 
   * Change zsync behavior if specifying zsync file, it will continually try
     zsync and won't revert to rsync or normal download.
 
  -- Doro Wu <doro.wu@canonical.com>  Thu, 17 Oct 2013 10:03:52 +0800
+
+ibs-cli (0.9) UNRELEASED; urgency=low
+
+  * Fixed list-projects failed in Ubuntu 12.04
+  * Added --no-download-image, which not to download image
+
+ -- Doro Wu <doro.wu@canonical.com>  Fri, 17 May 2013 18:06:53 +0800
 
 ibs-cli (0.8) UNRELEASED; urgency=low
 
