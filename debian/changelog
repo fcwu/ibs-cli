@@ -1,3 +1,9 @@
+ibs-cli (1.2) precise; urgency=low
+
+  * Fixed download error
+
+ -- Doro Wu <doro.wu@canonical.com>  Mon, 21 Oct 2013 14:37:31 +0800
+
 ibs-cli (1.1) precise; urgency=low
 
   * cherry-pick bzr 0.9 to git

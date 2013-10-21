@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__version__ = '1.1'
+__version__ = '1.2'
 __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
@@ -199,9 +199,9 @@ class IbsCli(object):
             try:
                 r = self.browser.open(base_url + url)
                 with open(filename, 'wb+') as f:
-                    chunk_read(r, file=f, report_hook=chunk_report)
-            except Exception:
-                logging.warn('Failed to download {0}{1}'.format(base_url, url))
+                    chunk_read(r, f, report_hook=chunk_report)
+            except Exception as e:
+                logging.warn('Failed to download {0}{1}: {2}'.format(base_url, url, e))
 
         def download_one_rsync(base_path, base_url, url):
             if not os.path.exists('/usr/bin/rsync'):
