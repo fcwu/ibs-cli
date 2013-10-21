@@ -1,3 +1,10 @@
+ibs-cli (1.0) UNRELEASED; urgency=low
+
+  * Change zsync behavior if specifying zsync file, it will continually try
+    zsync and won't revert to rsync or normal download.
+
+ -- Doro Wu <doro.wu@canonical.com>  Thu, 17 Oct 2013 10:03:52 +0800
+
 ibs-cli (0.8) UNRELEASED; urgency=low
 
   * skip archive directory (LP#1177844)

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__version__ = '0.8'
+__version__ = '1.0'
 __all__ = ['IbsCli']
 __author__ = 'DoroWu'
 __home_page__ = ''
@@ -96,7 +96,7 @@ class IbsCli(object):
             if bytes_so_far >= total_size:
                 sys.stdout.write('\n')
 
-        def chunk_read(response, file, chunk_size=8192, report_hook=None):
+        def chunk_read(response, f, chunk_size=8192, report_hook=None):
             total_size = response.info().getheader('Content-Length').strip()
             total_size = int(total_size)
             bytes_so_far = 0
@@ -107,7 +107,7 @@ class IbsCli(object):
 
                 if not chunk:
                     break
-                file.write(chunk)
+                f.write(chunk)
 
                 if report_hook:
                     report_hook(bytes_so_far, chunk_size, total_size)
@@ -129,6 +129,27 @@ class IbsCli(object):
                     links.append((m.group(1), m.group(2)))
                 return links
 
+            def zsync():
+                if self._args.zsync_file is None:
+                    return False
+                compare_link = link[0] + '.zsync'
+                result = False
+                for link_check in find_records(html)[1:]:
+                    if link_check[0] == compare_link:
+                        while not result:
+                            logging.info('Trying download via zsync...')
+                            result = download_one_zsync(base_path,
+                                                        base_url,
+                                                        url + link[0])
+                        break
+                else:
+                    logging.info('No zsync file or error '
+                                 'during process: ' + url + link[0])
+                return True
+
+            def rsync():
+                return download_one_rsync(base_path, base_url, url + link[0])
+
             logging.info('Open dir {0}'.format(url))
             try:
                 r = self.browser.open(base_url + url)
@@ -138,31 +159,17 @@ class IbsCli(object):
             try:
                 html = r.read()
                 for link in find_records(html)[1:]:
-                    if link[0][-1] == '/':
-                        download_all(base_path, base_url, url + link[0])
-                        continue
                     if any(link[0].endswith(x) for x in ('.iso.zsync',
                                                          '.img.zsync')):
                         continue
+                    if link[0][-1] == '/':
+                        download_all(base_path, base_url, url + link[0])
+                        continue
                     if any(link[0].endswith(x) for x in ('.iso', '.img')):
-                        compare_link = link[0] + '.zsync'
-                        result = False
-                        for link_check in find_records(html)[1:]:
-                            if link_check[0] != compare_link:
-                                continue
-                            result = download_one_zsync(base_path,
-                                                        base_url,
-                                                        url + link[0])
-                            break
-                        if result:
-                            break
-                        logging.info('No zsync file or error during process: '
-                                     + url + link[0])
-                        result = download_one_rsync(base_path,
-                                                    base_url,
-                                                    url + link[0])
-                        if result:
-                            break
+                        if zsync():
+                            continue
+                        if rsync():
+                            continue
                     download_one(base_path, base_url, url + link[0])
             except IndexError:
                 pass
@@ -241,7 +248,7 @@ class IbsCli(object):
 
         def download_one_zsync(base_path, base_url, url):
             if not os.path.exists('/usr/bin/zsync_curl'):
-                logging.debug('No zsync_curl found in /usr/bin. Revert')
+                logging.error('No zsync_curl found in /usr/bin. Revert')
                 return False
             logging.debug('fork zsync process for {0}'.format(url))
             # cookie
@@ -258,7 +265,7 @@ class IbsCli(object):
                     cookie_str = line[loc_pysid:loc_pysid_end]
                     break
             if not cookie_str:
-                logging.debug('No cookie pysid found. Revert')
+                logging.error('No cookie pysid found. Revert')
                 return False
             # infile
             ifile = self._args.zsync_file
@@ -281,7 +288,7 @@ class IbsCli(object):
                         biggest = t
                         ifile = file
             if not ifile:
-                logging.debug('No reference file found. Revert')
+                logging.error('No reference file found. Revert')
                 return False
             # outfile
             ofile = download_one(base_path, base_url, url, True)
@@ -295,7 +302,7 @@ class IbsCli(object):
             result = subprocess.call(cmd, shell=True)
             logging.debug('Command result: ' + str(result))
             if result != 0:
-                logging.warn('zsync failed with result ' + str(result))
+                logging.error('zsync failed with result ' + str(result))
                 return False
             return True
 
